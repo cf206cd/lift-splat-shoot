@@ -7,6 +7,7 @@ Authors: Jonah Philion and Sanja Fidler
 import torch
 from torch import nn
 from efficientnet_pytorch import EfficientNet
+from regnet import regnetx_002
 from torchvision.models.resnet import resnet18
 
 from .tools import gen_dx_bx, cumsum_trick, QuickCumsum
@@ -86,6 +87,42 @@ class CamEncode(nn.Module):
 
         return x
 
+class RegCamEncode(nn.Module):
+    def __init__(self, D, C, downsample):
+        super(CamEncode, self).__init__()
+        self.D = D
+        self.C = C
+
+        self.trunk = regnetx_002
+
+        self.up1 = Up(320+112, 512)
+        self.depthnet = nn.Conv2d(512, self.D + self.C, kernel_size=1, padding=0)
+
+    def get_depth_dist(self, x, eps=1e-20):
+        return x.softmax(dim=1)
+
+    def get_depth_feat(self, x):
+        x = self.get_eff_depth(x)
+        # Depth
+        x = self.depthnet(x)
+
+        depth = self.get_depth_dist(x[:, :self.D])
+        new_x = depth.unsqueeze(1) * x[:, self.D:(self.D + self.C)].unsqueeze(2)
+
+        return depth, new_x
+
+    def get_eff_depth(self, x):
+        # adapted from https://github.com/lukemelas/EfficientNet-PyTorch/blob/master/efficientnet_pytorch/model.py#L231
+
+        endpoints = self.trunk(x)
+
+        x = self.up1(endpoints[3], endpoints[2])
+        return x
+
+    def forward(self, x):
+        depth, x = self.get_depth_feat(x)
+
+        return x
 
 class BevEncode(nn.Module):
     def __init__(self, inC, outC):
