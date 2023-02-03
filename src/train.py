@@ -6,7 +6,7 @@ Authors: Jonah Philion and Sanja Fidler
 
 import torch
 from time import time
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import os
 
@@ -65,13 +65,17 @@ def train(version,
     device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
+    if torch.cuda.device_count() > 1:
+      print("Let's use", torch.cuda.device_count(), "GPUs!")
+      # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+      model = torch.nn.DataParallel(model)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     loss_fn = SimpleLoss(pos_weight).cuda(gpuid)
 
-    writer = SummaryWriter(logdir=logdir)
+    writer = SummaryWriter(log_dir=logdir)
     val_step = 1000 if version == 'mini' else 10000
 
     model.train()
@@ -84,8 +88,8 @@ def train(version,
             preds = model(imgs.to(device),
                     rots.to(device),
                     trans.to(device),
-                    intrins.to(device),
-                    post_rots.to(device),
+                    torch.inverse(intrins).to(device),
+                    torch.inverse(post_rots).to(device),
                     post_trans.to(device),
                     )
             binimgs = binimgs.to(device)

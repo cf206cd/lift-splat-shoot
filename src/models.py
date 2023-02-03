@@ -163,7 +163,7 @@ class LiftSplatShoot(nn.Module):
         frustum = torch.stack((xs, ys, ds), -1)
         return nn.Parameter(frustum, requires_grad=False)
 
-    def get_geometry(self, rots, trans, intrins, post_rots, post_trans):
+    def get_geometry(self, rots, trans, inverse_intrins, inverse_post_rots, post_trans):
         """Determine the (x,y,z) locations (in the ego frame)
         of the points in the point cloud.
         Returns B x N x D x H/downsample x W/downsample x 3
@@ -173,13 +173,13 @@ class LiftSplatShoot(nn.Module):
         # undo post-transformation
         # B x N x D x H x W x 3
         points = self.frustum - post_trans.view(B, N, 1, 1, 1, 3)
-        points = torch.inverse(post_rots).view(B, N, 1, 1, 1, 3, 3).matmul(points.unsqueeze(-1))
+        points = inverse_post_rots.view(B, N, 1, 1, 1, 3, 3).matmul(points.unsqueeze(-1))
 
         # cam_to_ego
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3],
                             points[:, :, :, :, :, 2:3]
                             ), 5)
-        combine = rots.matmul(torch.inverse(intrins))
+        combine = rots.matmul(inverse_intrins)
         points = combine.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += trans.view(B, N, 1, 1, 1, 3)
 
@@ -241,16 +241,16 @@ class LiftSplatShoot(nn.Module):
 
         return final
 
-    def get_voxels(self, x, rots, trans, intrins, post_rots, post_trans):
-        geom = self.get_geometry(rots, trans, intrins, post_rots, post_trans)
+    def get_voxels(self, x, rots, trans, inverse_intrins, inverse_post_rots, post_trans):
+        geom = self.get_geometry(rots, trans, inverse_intrins, inverse_post_rots, post_trans)
         x = self.get_cam_feats(x)
 
         x = self.voxel_pooling(geom, x)
 
         return x
 
-    def forward(self, x, rots, trans, intrins, post_rots, post_trans):
-        x = self.get_voxels(x, rots, trans, intrins, post_rots, post_trans)
+    def forward(self, x, rots, trans, inverse_intrins, inverse_post_rots, post_trans):
+        x = self.get_voxels(x, rots, trans, inverse_intrins, inverse_post_rots, post_trans)
         x = self.bevencode(x)
         return x
 
