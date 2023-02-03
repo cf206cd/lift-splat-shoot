@@ -93,8 +93,8 @@ class RegCamEncode(nn.Module):
         self.D = D
         self.C = C
 
-        self.trunk = regnetx_016()
-        self.trunk.load_state_dict(torch.load("./pre_weights/RegNetX-1.6G-dca58f53.pth"),strict=False)
+        self.trunk = regnetx_080()
+        self.trunk.load_state_dict(torch.load("./imagenet_pretrained/RegNetX-8.0G-1045c007.pth"),strict=False)
 
         self.up1 = Up(self.trunk.widths[self.trunk.out_indices[-2]]+self.trunk.widths[self.trunk.out_indices[-1]], 512)
         self.depthnet = nn.Conv2d(512, self.D + self.C, kernel_size=1, padding=0)
