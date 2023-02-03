@@ -7,7 +7,7 @@ Authors: Jonah Philion and Sanja Fidler
 import torch
 from torch import nn
 from efficientnet_pytorch import EfficientNet
-from regnet import regnetx_002
+from .regnet import regnetx_002
 from torchvision.models.resnet import resnet18
 
 from .tools import gen_dx_bx, cumsum_trick, QuickCumsum
