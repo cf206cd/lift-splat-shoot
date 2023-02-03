@@ -7,7 +7,7 @@ Authors: Jonah Philion and Sanja Fidler
 import torch
 from torch import nn
 from efficientnet_pytorch import EfficientNet
-from .regnet import regnetx_002
+from .regnet import *
 from torchvision.models.resnet import resnet18
 
 from .tools import gen_dx_bx, cumsum_trick, QuickCumsum
@@ -89,13 +89,14 @@ class CamEncode(nn.Module):
 
 class RegCamEncode(nn.Module):
     def __init__(self, D, C, downsample):
-        super(CamEncode, self).__init__()
+        super(RegCamEncode, self).__init__()
         self.D = D
         self.C = C
 
-        self.trunk = regnetx_002
+        self.trunk = regnetx_016()
+        self.trunk.load_state_dict(torch.load("./pre_weights/RegNetX-1.6G-dca58f53.pth"),strict=False)
 
-        self.up1 = Up(320+112, 512)
+        self.up1 = Up(self.trunk.widths[self.trunk.out_indices[-2]]+self.trunk.widths[self.trunk.out_indices[-1]], 512)
         self.depthnet = nn.Conv2d(512, self.D + self.C, kernel_size=1, padding=0)
 
     def get_depth_dist(self, x, eps=1e-20):
@@ -112,11 +113,10 @@ class RegCamEncode(nn.Module):
         return depth, new_x
 
     def get_eff_depth(self, x):
-        # adapted from https://github.com/lukemelas/EfficientNet-PyTorch/blob/master/efficientnet_pytorch/model.py#L231
+        # adapted from https://github.com/d-li14/regnet.pytorch
 
         endpoints = self.trunk(x)
-
-        x = self.up1(endpoints[3], endpoints[2])
+        x = self.up1(endpoints[2], endpoints[1])
         return x
 
     def forward(self, x):
@@ -181,7 +181,7 @@ class LiftSplatShoot(nn.Module):
         self.camC = 64
         self.frustum = self.create_frustum()
         self.D, _, _, _ = self.frustum.shape
-        self.camencode = CamEncode(self.D, self.camC, self.downsample)
+        self.camencode = RegCamEncode(self.D, self.camC, self.downsample)
         self.bevencode = BevEncode(inC=self.camC, outC=outC)
 
         # toggle using QuickCumsum vs. autograd
