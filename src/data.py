@@ -19,9 +19,10 @@ from .tools import get_lidar_data, img_transform, normalize_img, gen_dx_bx
 
 
 class NuscData(torch.utils.data.Dataset):
-    def __init__(self, nusc, is_train, data_aug_conf, grid_conf):
+    def __init__(self, nusc, is_train, data_aug_conf, grid_conf,is_aug):
         self.nusc = nusc
         self.is_train = is_train
+        self.is_aug = is_aug
         self.data_aug_conf = data_aug_conf
         self.grid_conf = grid_conf
 
@@ -96,7 +97,7 @@ class NuscData(torch.utils.data.Dataset):
     def sample_augmentation(self):
         H, W = self.data_aug_conf['H'], self.data_aug_conf['W']
         fH, fW = self.data_aug_conf['final_dim']
-        if self.is_train:
+        if self.is_aug:
             resize = np.random.uniform(*self.data_aug_conf['resize_lim'])
             resize_dims = (int(W*resize), int(H*resize))
             newW, newH = resize_dims
@@ -245,7 +246,7 @@ def worker_rnd_init(x):
 
 
 def compile_data(version, dataroot, data_aug_conf, grid_conf, bsz,
-                 nworkers, parser_name):
+                 nworkers, parser_name, is_aug = True):
     nusc = NuScenes(version='v1.0-{}'.format(version),
                     dataroot=os.path.join(dataroot, version),
                     verbose=False)
@@ -254,10 +255,9 @@ def compile_data(version, dataroot, data_aug_conf, grid_conf, bsz,
         'segmentationdata': SegmentationData,
     }[parser_name]
     traindata = parser(nusc, is_train=True, data_aug_conf=data_aug_conf,
-                         grid_conf=grid_conf)
+                            grid_conf=grid_conf, is_aug=is_aug)
     valdata = parser(nusc, is_train=False, data_aug_conf=data_aug_conf,
-                       grid_conf=grid_conf)
-
+                        grid_conf=grid_conf, is_aug=is_aug)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=bsz,
                                               shuffle=True,
                                               num_workers=nworkers,

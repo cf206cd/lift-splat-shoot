@@ -59,7 +59,7 @@ def lidar_check(version,
                 }
     trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
-                                          parser_name='vizdata')
+                                          parser_name='vizdata',is_aug=False)
 
     loader = trainloader if viz_train else valloader
 
@@ -297,7 +297,7 @@ def viz_model_preds(version,
                 }
     trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
-                                          parser_name='segmentationdata')
+                                          parser_name='segmentationdata',is_aug=False)
     loader = trainloader if viz_train else valloader
     nusc_maps = get_nusc_maps(map_folder)
 
