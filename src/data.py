@@ -153,6 +153,9 @@ class NuscData(torch.utils.data.Dataset):
             post_tran[:2] = post_tran2
             post_rot[:2, :2] = post_rot2
 
+            # intrin = torch.inverse(intrin)
+            # post_rot = torch.inverse(post_rot)
+
             imgs.append(normalize_img(img))
             intrins.append(intrin)
             rots.append(rot)

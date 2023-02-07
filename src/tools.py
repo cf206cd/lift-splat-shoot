@@ -250,9 +250,12 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
     with torch.no_grad():
         for batch in loader:
             allimgs, rots, trans, intrins, post_rots, post_trans, binimgs = batch
-            preds = model(allimgs.to(device), rots.to(device),
-                          trans.to(device), intrins.to(device), post_rots.to(device),
-                          post_trans.to(device))
+            preds = model(allimgs.to(device), 
+                            rots.to(device),
+                            trans.to(device), 
+                            torch.inverse(intrins).to(device),
+                            torch.inverse(post_rots).to(device),
+                            post_trans.to(device))
             binimgs = binimgs.to(device)
 
             # loss

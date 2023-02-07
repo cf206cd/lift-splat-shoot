@@ -74,7 +74,11 @@ def lidar_check(version,
     for epoch in range(nepochs):
         for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, pts, binimgs) in enumerate(loader):
 
-            img_pts = model.get_geometry(rots, trans, intrins, post_rots, post_trans)
+            img_pts = model.get_geometry(rots, 
+                            trans, 
+                            torch.inverse(intrins),
+                            torch.inverse(post_rots),
+                            post_trans)
 
             for si in range(imgs.shape[0]):
                 plt.clf()
@@ -118,7 +122,7 @@ def lidar_check(version,
 
 def cumsum_check(version,
                 dataroot='/data/nuscenes',
-                gpuid=1,
+                gpuid=0,
 
                 H=900, W=1600,
                 resize_lim=(0.193, 0.225),
@@ -167,11 +171,12 @@ def cumsum_check(version,
 
         model.use_quickcumsum = False
         model.zero_grad()
+        
         out = model(imgs.to(device),
                 rots.to(device),
                 trans.to(device),
-                intrins.to(device),
-                post_rots.to(device),
+                torch.inverse(intrins).to(device),
+                torch.inverse(post_rots).to(device),
                 post_trans.to(device),
                 )
         out.mean().backward()
@@ -182,8 +187,8 @@ def cumsum_check(version,
         out = model(imgs.to(device),
                 rots.to(device),
                 trans.to(device),
-                intrins.to(device),
-                post_rots.to(device),
+                torch.inverse(intrins).to(device),
+                torch.inverse(post_rots).to(device),
                 post_trans.to(device),
                 )
         out.mean().backward()
@@ -194,7 +199,7 @@ def cumsum_check(version,
 def eval_model_iou(version,
                 modelf,
                 dataroot='/data/nuscenes',
-                gpuid=1,
+                gpuid=0,
 
                 H=900, W=1600,
                 resize_lim=(0.193, 0.225),
@@ -202,6 +207,7 @@ def eval_model_iou(version,
                 bot_pct_lim=(0.0, 0.22),
                 rot_lim=(-5.4, 5.4),
                 rand_flip=True,
+                train=False,
 
                 xbound=[-50.0, 50.0, 0.5],
                 ybound=[-50.0, 50.0, 0.5],
@@ -231,7 +237,10 @@ def eval_model_iou(version,
     trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
-
+    if train:
+        dataloader = trainloader
+    else:
+        dataloader = valloader
     device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
@@ -242,7 +251,7 @@ def eval_model_iou(version,
     loss_fn = SimpleLoss(1.0).cuda(gpuid)
 
     model.eval()
-    val_info = get_val_info(model, valloader, loss_fn, device)
+    val_info = get_val_info(model, dataloader, loss_fn, device)
     print(val_info)
 
 
@@ -250,7 +259,7 @@ def viz_model_preds(version,
                     modelf,
                     dataroot='/data/nuscenes',
                     map_folder='/data/nuscenes/mini',
-                    gpuid=1,
+                    gpuid=0,
                     viz_train=False,
 
                     H=900, W=1600,
@@ -321,8 +330,8 @@ def viz_model_preds(version,
             out = model(imgs.to(device),
                     rots.to(device),
                     trans.to(device),
-                    intrins.to(device),
-                    post_rots.to(device),
+                    torch.inverse(intrins).to(device),
+                    torch.inverse(post_rots).to(device),
                     post_trans.to(device),
                     )
             out = out.sigmoid().cpu()
