@@ -259,12 +259,12 @@ def compile_data(version, dataroot, data_aug_conf, grid_conf, bsz,
     valdata = parser(nusc, is_train=False, data_aug_conf=data_aug_conf,
                         grid_conf=grid_conf, is_aug=is_aug)
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=bsz,
-                                              shuffle=True,
+                                              shuffle=is_aug,
                                               num_workers=nworkers,
                                               drop_last=True,
                                               worker_init_fn=worker_rnd_init)
     valloader = torch.utils.data.DataLoader(valdata, batch_size=bsz,
-                                            shuffle=False,
+                                            shuffle=is_aug,
                                             num_workers=nworkers)
 
     return trainloader, valloader
